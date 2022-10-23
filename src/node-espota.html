@@ -1,0 +1,50 @@
+<script type="text/javascript">
+  RED.nodes.registerType("node-espota", {
+    category: "espota",
+    color: "rgb(51, 204, 204)",
+    defaults: {
+      firmwareLink: {
+        required: true,
+        value:
+          "https://github.com/andrei-tatar/ha-wifi-switch/releases/latest/download/ha_switch_esp32.bin",
+      },
+      includeTopics: {
+        required: true,
+        value: "^(.+)\/version$",
+      },
+      excludeTopics: {
+        value: "",
+      },
+      name: {
+        value: "",
+      },
+    },
+    inputs: 1,
+    outputs: 0,
+    paletteLabel: "espota",
+    label: function () {
+      return this.name || "espota";
+    },
+  });
+</script>
+
+<script type="text/x-red" data-template-name="node-espota">
+  <div class="form-row">
+      <label for="node-input-firmwareLink"><i class="fa fa-download"></i> Firmware</label>
+      <input type="text" id="node-input-firmwareLink">
+  </div>
+  <div class="form-row">
+      <label for="node-input-includeTopics"><i class="fa fa-plus"></i> Include</label>
+      <input type="text" id="node-input-includeTopics">
+  </div>
+  <div class="form-row">
+    <label for="node-input-excludeTopics"><i class="fa fa-minus"></i> Exclude</label>
+    <input type="text" id="node-input-excludeTopics">
+  </div>
+  <div class="form-row">
+      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+      <input type="text" id="node-input-name">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="node-espota"></script>
