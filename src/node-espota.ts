@@ -1,7 +1,7 @@
 import {
     catchError, combineLatest, concat, defer, EMPTY,
     finalize, first, mergeMap, Observable, of, ReplaySubject, retry, scan,
-    Subject, switchMap, timer
+    share, Subject, switchMap, timer, withLatestFrom
 } from "rxjs";
 import { EspOta } from "./esp-ota";
 import { fetch } from 'undici'
@@ -37,7 +37,10 @@ module.exports = function (RED: any) {
                         return map;
                     }, new Map<string, string>(savedMap))
                 ),
-            )
+            ),
+            share({
+                connector: () => new ReplaySubject(1),
+            }),
         );
 
         const latestVersion$ = defer(async () => {
@@ -156,6 +159,7 @@ module.exports = function (RED: any) {
 
         const subscription =
             executeUpdate$.pipe(
+                withLatestFrom(versionsByHost$),
                 switchMap(_ => doTheUpdate$)
             ).subscribe();
 
