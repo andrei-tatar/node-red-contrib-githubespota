@@ -1,6 +1,6 @@
 import {
     catchError, combineLatest, concat, defer, EMPTY,
-    finalize, mergeMap, Observable, of, ReplaySubject, retry, scan,
+    finalize, first, mergeMap, Observable, of, ReplaySubject, retry, scan,
     Subject, switchMap, timer
 } from "rxjs";
 import { EspOta } from "./esp-ota";
@@ -90,7 +90,8 @@ module.exports = function (RED: any) {
             });
         };
 
-        const subscription = combineLatest([versionsByHost$, latestVersion$, executeUpdate$]).pipe(
+        const doTheUpdate$ = combineLatest([versionsByHost$, latestVersion$]).pipe(
+            first(),
             switchMap(([versions, latest]) => {
                 const execute$ = new ReplaySubject<Observable<void>>();
 
@@ -151,7 +152,12 @@ module.exports = function (RED: any) {
                     return timer(0);
                 },
             }),
-        ).subscribe();
+        );
+
+        const subscription =
+            executeUpdate$.pipe(
+                switchMap(_ => doTheUpdate$)
+            ).subscribe();
 
         updateStatus();
 
