@@ -1,12 +1,14 @@
 import {
-    catchError, combineLatest, concat, defer, EMPTY,
-    finalize, first, mergeMap, Observable, of, ReplaySubject, retry, scan,
-    share, Subject, switchMap, timer, withLatestFrom
+    Subject, combineLatest, concat, defer, EMPTY,
+    of, ReplaySubject, timer, Observable,
 } from "rxjs";
+import {
+    catchError, finalize, first, mergeMap, retry, scan,
+    share, shareReplay, switchMap, withLatestFrom
+} from "rxjs/operators";
 import { EspOta } from "./esp-ota";
 import { fetch } from 'undici'
 import { gte as versionGreaterOrEqual } from 'semver';
-
 
 const VERSION_REGEX = /\d+\.\d+\.\d+/;
 
@@ -66,10 +68,14 @@ module.exports = function (RED: any) {
 
             return {
                 version,
-                firmware$: defer(() => fetch(latestLocation)
-                    .then(v => v.blob())
-                    .then(b => b.arrayBuffer())
-                    .then(b => Buffer.from(b))),
+                firmware$: defer(async () => {
+                    const response = await fetch(latestLocation);
+                    const blob = await response.blob();
+                    const buffer = await blob.arrayBuffer();
+                    return Buffer.from(buffer);
+                }).pipe(
+                    shareReplay(1),
+                ),
             };
         });
 
@@ -141,7 +147,7 @@ module.exports = function (RED: any) {
                 }
 
                 return execute$.pipe(
-                    mergeMap(v => v)
+                    mergeMap(v => v, 2),
                 );
             }),
             retry({
@@ -152,7 +158,7 @@ module.exports = function (RED: any) {
                         shape: 'ring',
                         text: 'something went wrong, check logs'
                     });
-                    return timer(0);
+                    return timer(10000);
                 },
             }),
         );

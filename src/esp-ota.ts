@@ -1,8 +1,9 @@
-import { Observable, combineLatest, merge, ReplaySubject, ObservableInput } from 'rxjs';
+import { Observable, combineLatest, merge, ObservableInput } from 'rxjs';
 import { concatMap, first, ignoreElements, retry, share, switchMap, timeout } from 'rxjs/operators';
 
 import { createSocket, Socket as UdpSocket } from 'node:dgram';
 import { createServer, Server, Socket as TcpSocket } from 'node:net';
+import { lookup as dnsLookup } from 'node:dns';
 import { createHash } from 'node:crypto';
 
 export enum OtaTarget {
@@ -30,11 +31,7 @@ export class EspOta {
         udpsocket.on('error', (e) => observer.error(e));
         observer.next(udpsocket);
         return () => udpsocket.close();
-    }).pipe(
-        share({
-            connector: () => new ReplaySubject(1),
-        }),
-    );
+    });
 
     private server$ = new Observable<Server>(observer => {
         const server = createServer();
@@ -50,11 +47,11 @@ export class EspOta {
     upload(options: UploadOptions): Observable<never> {
         const opts = { ...DEFAULT_UPLOAD_OPTIONS, ...options };
 
-        return combineLatest([this.socket$, this.server$, options.data]).pipe(
-            switchMap(([socket, server, data]) => {
+        return combineLatest([this.socket$, this.server$, options.data, this.dns(options.host)]).pipe(
+            switchMap(([socket, server, data, address]) => {
                 return merge(
                     this.sendData(data, server),
-                    this.sendInvitation(data, opts, socket, server)
+                    this.sendInvitation(data, opts, address, socket, server)
                 );
             }),
             first(),
@@ -125,7 +122,7 @@ export class EspOta {
         });
     }
 
-    private sendInvitation(data: Buffer, opts: UploadOptions, socket: UdpSocket, server: Server): Observable<never> {
+    private sendInvitation(data: Buffer, opts: UploadOptions, address: string, socket: UdpSocket, server: Server): Observable<never> {
         return new Observable<never>(observer => {
             const serverAddress = server.address();
             if (!serverAddress || typeof serverAddress !== 'object') {
@@ -134,9 +131,8 @@ export class EspOta {
 
             const buf = Buffer.from(`${opts.target} ${serverAddress.port} ${data.length} ${this.md5(data)}`);
 
-            socket.send(buf, 0, buf.length, opts.port, opts.host);
             const handler = (data: Buffer) => {
-                let stringData = data.toString();
+                const stringData = data.toString();
 
                 if (stringData.match(/OK/)) {
                     observer.complete();
@@ -145,6 +141,8 @@ export class EspOta {
                 }
             };
             socket.on('message', handler);
+
+            socket.send(buf, 0, buf.length, opts.port, address);
             return () => socket.off('message', handler);
         }).pipe(
             timeout(2000),
@@ -167,6 +165,19 @@ export class EspOta {
 
     private md5(data: Buffer | string) {
         return createHash('md5').update(data).digest('hex');
+    }
+
+    private dns(host: string) {
+        return new Observable<string>(observer => {
+            dnsLookup(host, 4, (err, address) => {
+                if (err) {
+                    observer.error(err);
+                } else {
+                    observer.next(address);
+                    observer.complete();
+                }
+            });
+        });
     }
 }
 
