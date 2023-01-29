@@ -1,4 +1,4 @@
-import { Observable, combineLatest, merge, ObservableInput } from 'rxjs';
+import { Observable, combineLatest, merge, ObservableInput, Subject } from 'rxjs';
 import { concatMap, first, ignoreElements, retry, share, switchMap, timeout } from 'rxjs/operators';
 
 import { createSocket, Socket as UdpSocket } from 'node:dgram';
@@ -25,6 +25,32 @@ const DEFAULT_UPLOAD_OPTIONS: Required<Pick<UploadOptions, 'port' | 'target'>> =
 
 export class EspOta {
     private options: Readonly<Required<EspOtaOptions>>;
+    private resolveDns$ = new Subject<{
+        host: string;
+        resolve: (address: string) => void;
+        reject: (err: unknown) => void;
+    }>();
+
+    private dns$ = this.resolveDns$.pipe(
+        concatMap(async ({ host, resolve, reject }) => {
+            try {
+                const result = await new Promise<string>((ok, fail) => dnsLookup(host, 4, (err, address) => {
+                    if (err) {
+                        fail(err);
+                    } else {
+                        ok(address);
+                    }
+                }));
+                resolve(result);
+            } catch (err) {
+                reject(err);
+            }
+        }),
+        ignoreElements(),
+        share({
+            resetOnRefCountZero: true,
+        }),
+    );
 
     private socket$ = new Observable<UdpSocket>(observer => {
         const udpsocket = createSocket('udp4');
@@ -168,16 +194,23 @@ export class EspOta {
     }
 
     private dns(host: string) {
-        return new Observable<string>(observer => {
-            dnsLookup(host, 4, (err, address) => {
-                if (err) {
-                    observer.error(err);
-                } else {
-                    observer.next(address);
-                    observer.complete();
-                }
-            });
-        });
+        return merge(
+            this.dns$,
+            new Observable<string>(observer => {
+                this.resolveDns$.next({
+                    host,
+                    resolve: (address) => {
+                        observer.next(address);
+                        observer.complete();
+                    },
+                    reject: (err) => {
+                        observer.error(err);
+                    },
+                });
+            }).pipe(
+                retry(3),
+            ),
+        );
     }
 }
 
