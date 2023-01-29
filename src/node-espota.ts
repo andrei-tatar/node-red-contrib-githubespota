@@ -147,7 +147,7 @@ module.exports = function (RED: any) {
                 }
 
                 return execute$.pipe(
-                    mergeMap(v => v, 2),
+                    mergeMap(v => v),
                 );
             }),
             retry({
