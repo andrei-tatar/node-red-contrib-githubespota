@@ -18,8 +18,8 @@ module.exports = function (RED: any) {
 
         const versions$ = new Subject<{ host: string, version: string }>();
         const executeUpdate$ = new Subject<void>();
-        const includeTopics = new RegExp(config.includeTopics);
-        const excludeTopics = config.excludeTopics ? new RegExp(config.excludeTopics) : null;
+        const extractHost = new RegExp(config.extractHost);
+        const excludeHost = config.excludeHost ? new RegExp(config.excludeHost) : null;
         const firmwareLink = config.firmwareLink;
         if (!firmwareLink) {
             return;
@@ -110,6 +110,10 @@ module.exports = function (RED: any) {
                 failed = 0;
 
                 for (const [host, version] of versions) {
+                    if (excludeHost && excludeHost.exec(host)) {
+                        continue;
+                    }
+
                     if (versionGreaterOrEqual(version, latest.version)) {
                         continue;
                     }
@@ -186,12 +190,8 @@ module.exports = function (RED: any) {
                 return;
             }
 
-            const match = includeTopics.exec(topic);
+            const match = extractHost.exec(topic);
             if (!match) {
-                return;
-            }
-
-            if (excludeTopics && excludeTopics.exec(topic)) {
                 return;
             }
 

@@ -8,11 +8,11 @@
         value:
           "https://github.com/andrei-tatar/ha-wifi-switch/releases/latest/download/ha_switch_esp32.bin",
       },
-      includeTopics: {
+      extractHost: {
         required: true,
         value: "^(.+)\/version$",
       },
-      excludeTopics: {
+      excludeHost: {
         value: "",
       },
       name: {
@@ -34,12 +34,12 @@
       <input type="text" id="node-input-firmwareLink">
   </div>
   <div class="form-row">
-      <label for="node-input-includeTopics"><i class="fa fa-plus"></i> Include</label>
-      <input type="text" id="node-input-includeTopics">
+      <label for="node-input-extractHost"><i class="fa fa-plus"></i> Extract</label>
+      <input type="text" id="node-input-extractHost">
   </div>
   <div class="form-row">
-    <label for="node-input-excludeTopics"><i class="fa fa-minus"></i> Exclude</label>
-    <input type="text" id="node-input-excludeTopics">
+    <label for="node-input-excludeHost"><i class="fa fa-minus"></i> Exclude</label>
+    <input type="text" id="node-input-excludeHost">
   </div>
   <div class="form-row">
       <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
