@@ -19,6 +19,7 @@ module.exports = function (RED: any) {
         const versions$ = new Subject<{ host: string, version: string }>();
         const executeUpdate$ = new Subject<void>();
         const extractHost = new RegExp(config.extractHost);
+        const transform = config.transform || '$1.local';
         const excludeHost = config.excludeHost ? new RegExp(config.excludeHost) : null;
         const firmwareLink = config.firmwareLink;
         if (!firmwareLink) {
@@ -190,12 +191,14 @@ module.exports = function (RED: any) {
                 return;
             }
 
-            const match = extractHost.exec(topic);
-            if (!match) {
+            if (extractHost.test(topic)) {
                 return;
             }
 
-            versions$.next({ host: `${match[1]}.local`, version: msg.payload });
+            versions$.next({
+                host: topic.replace(extractHost, transform),
+                version: msg.payload
+            });
         });
 
         this.on('close', () => subscription.unsubscribe());
