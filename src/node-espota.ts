@@ -182,16 +182,11 @@ module.exports = function (RED: any) {
                 return;
             }
 
-            if (typeof msg.payload != 'string' || !msg.payload.length) {
-                return;
-            }
-
             const topic = msg.topic ?? '';
-            if (!topic) {
-                return;
-            }
-
-            if (extractHost.test(topic)) {
+            if (typeof msg.payload != 'string' ||
+                !msg.payload.length ||
+                !topic ||
+                !extractHost.test(topic)) {
                 return;
             }
 
