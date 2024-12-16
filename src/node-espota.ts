@@ -48,9 +48,9 @@ module.exports = function (RED: any) {
       const versionsByHost$ = defer(() => {
         const context = this.context();
         const keys = context.keys();
-        const map = new Map<string, string>([
-          ...keys.map((k) => [k, context.get(k) as string] as const),
-        ]);
+        const map = new Map<string, string>(
+          keys.map((k) => [k, context.get(k) as string])
+        );
         return of(map);
       }).pipe(
         switchMap((savedMap) =>
@@ -120,8 +120,15 @@ module.exports = function (RED: any) {
                 } ${updated}/${total} (${inProgress}${
                   failed ? `, fail:${failed}` : ""
                 })`,
-          shape: inProgress === 0 ? "ring" : "dot,",
+          shape: inProgress === 0 ? "ring" : "dot",
         });
+
+        if (inProgress === 0 && failed === 0 && total === 0) {
+          total = 1;
+          setTimeout(() => {
+            updateStatus();
+          }, 5000);
+        }
       };
 
       const doTheUpdate$ = combineLatest([
