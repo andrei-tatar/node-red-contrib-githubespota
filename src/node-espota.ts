@@ -99,7 +99,10 @@ module.exports = function (RED: any) {
         };
       });
 
-      const ota = new EspOta();
+      const ota = new EspOta({
+        tcpPort: +config.tcpPort,
+        udpPort: +config.udpPort,
+      });
       let updated = 0;
       let inProgress = 0;
       let total: number | undefined;
@@ -160,19 +163,14 @@ module.exports = function (RED: any) {
                   updateStatus(latest.version);
                   return EMPTY;
                 }),
-                ota
-                  .upload({
-                    host,
-                    data: latest.firmware$,
+                ota.upload({ host, firmware$: latest.firmware$ }).pipe(
+                  catchError((err) => {
+                    this.error(err);
+                    failed++;
+                    updated--;
+                    return EMPTY;
                   })
-                  .pipe(
-                    catchError((err) => {
-                      this.error(err);
-                      failed++;
-                      updated--;
-                      return EMPTY;
-                    })
-                  )
+                )
               ).pipe(
                 finalize(() => {
                   updated++;
