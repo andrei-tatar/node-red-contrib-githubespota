@@ -218,8 +218,6 @@ export class EspOta {
 
       const handler = (data: Buffer) => {
         const stringData = data.toString();
-        console.log("Received UDP response:", stringData);
-
         if (stringData.match(/OK/)) {
           observer.complete();
         } else if (stringData.match(/AUTH/)) {
