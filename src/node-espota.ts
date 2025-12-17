@@ -88,6 +88,8 @@ module.exports = function (RED: any) {
 
         const version = match[0];
 
+        this.log("Latest firmware version: " + version);
+
         return {
           version,
           firmware$: defer(async () => {
@@ -149,13 +151,20 @@ module.exports = function (RED: any) {
 
           for (const [host, version] of versions) {
             if (excludeHost && excludeHost.exec(host)) {
+              this.log(`Excluding host ${host} from update`);
               continue;
             }
 
             if (versionGreaterOrEqual(version, latest.version)) {
+              this.log(
+                `Host ${host} is already on version ${version}, skipping`
+              );
               continue;
             }
 
+            this.log(
+              `Updating host ${host} from version ${version} to ${latest.version}`
+            );
             execute$.next(
               concat(
                 defer(() => {
@@ -213,6 +222,7 @@ module.exports = function (RED: any) {
 
       this.on("input", (msg) => {
         if (msg.topic === "update") {
+          this.log("Received update command");
           executeUpdate$.next();
           return;
         }
