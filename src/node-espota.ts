@@ -99,9 +99,6 @@ module.exports = function (RED: any) {
         };
       });
 
-      const ota = new EspOta({
-        serverPort: config.serverPort || 0,
-      });
       let updated = 0;
       let inProgress = 0;
       let total: number | undefined;
@@ -146,6 +143,11 @@ module.exports = function (RED: any) {
           inProgress = 0;
           failed = 0;
 
+          const ota = new EspOta({
+            firmware: latest.firmware$,
+            serverPort: config.serverPort || 0,
+          });
+
           for (const [host, version] of versions) {
             if (excludeHost && excludeHost.exec(host)) {
               continue;
@@ -162,19 +164,14 @@ module.exports = function (RED: any) {
                   updateStatus(latest.version);
                   return EMPTY;
                 }),
-                ota
-                  .upload({
-                    host,
-                    data: latest.firmware$,
+                ota.upload({ host }).pipe(
+                  catchError((err) => {
+                    this.error(err);
+                    failed++;
+                    updated--;
+                    return EMPTY;
                   })
-                  .pipe(
-                    catchError((err) => {
-                      this.error(err);
-                      failed++;
-                      updated--;
-                      return EMPTY;
-                    })
-                  )
+                )
               ).pipe(
                 finalize(() => {
                   updated++;

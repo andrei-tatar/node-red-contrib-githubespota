@@ -9,6 +9,7 @@ import {
   concatMap,
   first,
   ignoreElements,
+  mergeMap,
   retry,
   share,
   switchMap,
@@ -26,7 +27,7 @@ export enum OtaTarget {
   Auth = 200,
 }
 
-const DEFAULT_OPTIONS: Required<EspOtaOptions> = {
+const DEFAULT_OPTIONS: Required<Omit<EspOtaOptions, "firmware">> = {
   chunkSize: 1460,
   serverPort: 0,
   timeout: 5000,
@@ -81,9 +82,9 @@ export class EspOta {
     server.listen(this.options.serverPort, () => observer.next(server));
     server.on("error", (e) => observer.error(e));
     return () => server.close();
-  });
+  }).pipe(share({ resetOnRefCountZero: true }));
 
-  constructor(options?: EspOtaOptions) {
+  constructor(options: EspOtaOptions) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
   }
 
@@ -93,13 +94,13 @@ export class EspOta {
     return combineLatest([
       this.socket$,
       this.server$,
-      options.data,
       this.dns(options.host),
+      this.options.firmware,
     ]).pipe(
-      switchMap(([socket, server, data, address]) => {
+      switchMap(([socket, server, address, firmware]) => {
         return merge(
-          this.sendData(data, server),
-          this.sendInvitation(data, opts, address, socket, server)
+          this.sendData(firmware, server),
+          this.sendInvitation(firmware, opts, address, socket, server)
         );
       }),
       first(),
@@ -109,11 +110,14 @@ export class EspOta {
 
   private sendData(data: Buffer, server: Server): Observable<any> {
     return new Observable<TcpSocket>((observer) => {
-      const handler = (socket: TcpSocket) => observer.next(socket);
+      const handler = (socket: TcpSocket) => {
+        observer.next(socket);
+        observer.complete();
+      };
       server.once("connection", handler);
       return () => server.off("connection", handler);
     }).pipe(
-      switchMap((socket) => {
+      concatMap((socket) => {
         const rx$ = new Observable<Buffer>((observer) => {
           const dataHandler = (data: Buffer) => observer.next(data);
           const errorHandler = (e: any) => observer.error(e);
@@ -242,11 +246,11 @@ interface EspOtaOptions {
   serverPort?: number;
   chunkSize?: number;
   timeout?: number;
+  firmware: ObservableInput<Buffer>;
 }
 
 interface UploadOptions {
   host: string;
-  data: ObservableInput<Buffer>;
   port?: number;
   target?: OtaTarget;
   password?: string;
