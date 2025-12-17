@@ -3,6 +3,9 @@
     category: "espota",
     color: "rgb(51, 204, 204)",
     defaults: {
+      serverPort: {
+        value: 0,
+      },
       firmwareLink: {
         required: true,
         value:
@@ -32,6 +35,10 @@
 </script>
 
 <script type="text/x-red" data-template-name="node-espota">
+  <div class="form-row">
+      <label for="node-input-serverPort"><i class="fa fa-sort-numeric-asc"></i> Port</label>
+      <input type="text" id="node-input-serverPort">
+  </div>
   <div class="form-row">
       <label for="node-input-firmwareLink"><i class="fa fa-download"></i> Firmware</label>
       <input type="text" id="node-input-firmwareLink">

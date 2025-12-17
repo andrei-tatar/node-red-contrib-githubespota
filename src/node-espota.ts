@@ -99,7 +99,9 @@ module.exports = function (RED: any) {
         };
       });
 
-      const ota = new EspOta();
+      const ota = new EspOta({
+        serverPort: config.serverPort || 0,
+      });
       let updated = 0;
       let inProgress = 0;
       let total: number | undefined;
