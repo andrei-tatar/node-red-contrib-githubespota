@@ -15,11 +15,8 @@ import {
   first,
   mergeMap,
   retry,
-  scan,
-  share,
   shareReplay,
   switchMap,
-  withLatestFrom,
 } from "rxjs/operators";
 import { EspOta } from "./esp-ota";
 import { fetch } from "undici";
@@ -33,8 +30,6 @@ module.exports = function (RED: any) {
     function (this: NodeInterface, config: any) {
       RED.nodes.createNode(this, config);
 
-      const versions$ = new Subject<{ host: string; version: string }>();
-      const executeUpdate$ = new Subject<void>();
       const extractHost = new RegExp(config.extractHost);
       const transform = config.transform || "$1.local";
       const excludeHost = config.excludeHost
@@ -52,20 +47,7 @@ module.exports = function (RED: any) {
           keys.map((k) => [k, context.get(k) as string])
         );
         return of(map);
-      }).pipe(
-        switchMap((savedMap) =>
-          versions$.pipe(
-            scan((map, current) => {
-              map.set(current.host, current.version);
-              this.context().set(current.host, current.version);
-              return map;
-            }, new Map<string, string>(savedMap))
-          )
-        ),
-        share({
-          connector: () => new ReplaySubject(1),
-        })
-      );
+      });
 
       const latestVersion$ = defer(async () => {
         const latestFirmware = await fetch(firmwareLink, {
@@ -211,11 +193,9 @@ module.exports = function (RED: any) {
         })
       );
 
+      const executeUpdate$ = new Subject<void>();
       const subscription = executeUpdate$
-        .pipe(
-          withLatestFrom(versionsByHost$),
-          switchMap((_) => doTheUpdate$)
-        )
+        .pipe(switchMap((_) => doTheUpdate$))
         .subscribe();
 
       updateStatus();
@@ -237,10 +217,9 @@ module.exports = function (RED: any) {
           return;
         }
 
-        versions$.next({
-          host: topic.replace(extractHost, transform),
-          version: msg.payload,
-        });
+        const host = topic.replace(extractHost, transform);
+        const version = msg.payload;
+        this.context().set(host, version);
       });
 
       this.on("close", () => subscription.unsubscribe());
